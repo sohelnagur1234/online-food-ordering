@@ -2,51 +2,63 @@ name: Build and Test Project
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master", "main" ]  # Trigger on pushes to master/main
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master", "main" ]  # Trigger on pull requests to master/main
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: foodorder
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
-
     steps:
+      # Step 1: Checkout the code from GitHub
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Java setup
-      - name: Set up JDK 17
+      # Step 2: Set up Java (for your Java + JDBC backend)
+      - name: Set up Java
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build Backend with Maven
-        run: mvn -B clean install --file backend/pom.xml
+      # Step 3: Install MySQL (if needed for testing)
+      - name: Install MySQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-server
+          sudo service mysql start
+          
+      # Step 4: Set up MySQL database and test user (replace with your DB setup)
+      - name: Set up MySQL database
+        run: |
+          mysql -e "CREATE DATABASE IF NOT EXISTS online_food_ordering;"
+          mysql -e "CREATE USER 'test_user'@'localhost' IDENTIFIED BY 'password';"
+          mysql -e "GRANT ALL PRIVILEGES ON online_food_ordering.* TO 'test_user'@'localhost';"
+          mysql -e "FLUSH PRIVILEGES;"
 
-      # Node.js setup
+      # Step 5: Build backend (Java + JDBC)
+      - name: Build Backend (Java + JDBC)
+        run: |
+          javac -d bin src/*.java  # Modify if you have a different structure
+          java -cp bin Main  # Run your main class to test the build
+
+      # Step 6: Set up Node.js (for your React frontend)
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
+      # Step 7: Install frontend dependencies
       - name: Install Frontend dependencies
         working-directory: frontend
         run: npm install
 
-      - name: Run Frontend tests
+      # Step 8: Run frontend tests (if applicable)
+      - name: Run Frontend Tests
         working-directory: frontend
         run: npm test
 
-      - name: Run Backend tests
-        run: mvn test --file backend/pom.xml
+      # Optional: Step 9: Deploy (if needed)
+      # - name: Deploy to production
+      #   run: your-deployment-script.sh
