@@ -10,6 +10,18 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8
+        options: --health-cmd="mysqladmin ping --silent" --health-timeout=5s --health-retries=3
+        env:
+          MYSQL_ROOT_PASSWORD: sohel@636172
+          MYSQL_DATABASE: food_ordering_db
+          MYSQL_USER: root
+          MYSQL_PASSWORD: sohel@636172
+        ports:
+          - 3306:3306
+
     steps:
       # Step 1: Checkout the code from GitHub
       - name: Checkout code
@@ -22,43 +34,33 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 3: Install MySQL (if needed for testing)
-      - name: Install MySQL
+      # Step 3: Wait for MySQL to be ready (allow MySQL to start)
+      - name: Wait for MySQL to be ready
         run: |
-          sudo apt-get update
-          sudo apt-get install -y mysql-server
-          sudo service mysql start
-          
-      # Step 4: Set up MySQL database and test user (replace with your DB setup)
-      - name: Set up MySQL database
-        run: |
-          mysql -e "CREATE DATABASE IF NOT EXISTS online_food_ordering;"
-          mysql -e "CREATE USER 'test_user'@'localhost' IDENTIFIED BY 'password';"
-          mysql -e "GRANT ALL PRIVILEGES ON online_food_ordering.* TO 'test_user'@'localhost';"
-          mysql -e "FLUSH PRIVILEGES;"
+          docker exec mysql mysqladmin --wait-for-all-databases --silent --user=root --password=rootpassword
 
-      # Step 5: Build backend (Java + JDBC)
+      # Step 4: Build backend (Java + JDBC)
       - name: Build Backend (Java + JDBC)
         run: |
           javac -d bin src/*.java  # Modify if you have a different structure
           java -cp bin Main  # Run your main class to test the build
 
-      # Step 6: Set up Node.js (for your React frontend)
+      # Step 5: Set up Node.js (for your React frontend)
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      # Step 7: Install frontend dependencies
+      # Step 6: Install frontend dependencies
       - name: Install Frontend dependencies
         working-directory: frontend
         run: npm install
 
-      # Step 8: Run frontend tests (if applicable)
+      # Step 7: Run frontend tests (if applicable)
       - name: Run Frontend Tests
         working-directory: frontend
         run: npm test
 
-      # Optional: Step 9: Deploy (if needed)
+      # Optional: Step 8: Deploy (if needed)
       # - name: Deploy to production
       #   run: your-deployment-script.sh
